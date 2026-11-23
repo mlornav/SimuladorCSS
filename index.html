@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador Visual de CSS Flexbox</title>
+  <!-- Carga de Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tipografías Inter y Fira Code -->
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    code, pre, .font-mono {
+      font-family: 'Fira Code', monospace;
+    }
+    /* Patrón de cuadrícula sutil para el área de simulación */
+    .canvas-grid {
+      background-color: #f8fafc;
+      background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    /* Transiciones suaves para los ítems flex */
+    .flex-sim-item {
+      transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    /* Estilo para botones activos */
+    .btn-option.active {
+      background-color: #4f46e5;
+      color: #ffffff;
+      border-color: #4f46e5;
+      box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25);
+    }
+    /* Personalización ligera de sliders */
+    input[type="range"] {
+      accent-color: #4f46e5;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Barra de navegación superior enfocada 100% en el simulador -->
+  <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="bg-indigo-500 p-2 rounded-xl shadow-inner">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight">Simulador Visual de CSS Flexbox</h1>
+          <p class="text-xs text-slate-400">Experimenta en tiempo real con ejes, alineación, crecimiento y encogimiento</p>
+        </div>
+      </div>
+
+      <!-- Escenarios rápidos (Presets) y botón de reinicio -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs text-slate-400 hidden xl:inline mr-1">Escenarios rápidos:</span>
+        <button type="button" onclick="applyPreset('free')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white border border-slate-700 transition">
+          Espacio libre (justify-content)
+        </button>
+        <button type="button" onclick="applyPreset('grow')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white border border-slate-700 transition">
+          Reparto (flex-grow)
+        </button>
+        <button type="button" onclick="applyPreset('shrink')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white border border-slate-700 transition">
+          Falta de espacio (flex-shrink)
+        </button>
+        <button type="button" onclick="resetLaboratorio()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600/90 hover:bg-rose-500 text-white transition shadow-xs ml-1">
+          Restablecer valores
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notificación Toast (Sustituto seguro de alert) -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl border border-slate-700 flex items-center gap-2.5 transform translate-y-20 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+    </svg>
+    <span id="toast-msg" class="text-sm font-medium">Acción completada</span>
+  </div>
+
+  <!-- CONTENIDO PRINCIPAL DEL SIMULADOR -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- COLUMNA IZQUIERDA: PANEL DE CONTROLES (5 columnas en desktop) -->
+    <section class="lg:col-span-5 flex flex-col gap-5">
+      
+      <!-- Panel 1: Propiedades del Contenedor (Padre) -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-indigo-600"></span>
+            <h2 class="font-bold text-slate-800 text-base">Contenedor (Padre)</h2>
+          </div>
+          <span class="text-[11px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">display: flex</span>
+        </div>
+
+        <div class="space-y-4">
+          <!-- flex-direction -->
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label class="text-xs font-bold uppercase tracking-wider text-slate-600">flex-direction</label>
+              <span class="text-[11px] text-indigo-600 font-medium">Define el Eje Principal</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5" data-prop="flexDirection">
+              <button type="button" onclick="setContainerProp('flexDirection', 'row')" data-val="row" class="btn-option active px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">row</button>
+              <button type="button" onclick="setContainerProp('flexDirection', 'row-reverse')" data-val="row-reverse" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">row-reverse</button>
+              <button type="button" onclick="setContainerProp('flexDirection', 'column')" data-val="column" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">column</button>
+              <button type="button" onclick="setContainerProp('flexDirection', 'column-reverse')" data-val="column-reverse" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">column-reverse</button>
+            </div>
+          </div>
+
+          <!-- flex-wrap -->
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label class="text-xs font-bold uppercase tracking-wider text-slate-600">flex-wrap</label>
+              <span class="text-[11px] text-slate-400">Salto de línea</span>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5" data-prop="flexWrap">
+              <button type="button" onclick="setContainerProp('flexWrap', 'nowrap')" data-val="nowrap" class="btn-option active px-2.5 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">nowrap</button>
+              <button type="button" onclick="setContainerProp('flexWrap', 'wrap')" data-val="wrap" class="btn-option px-2.5 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">wrap</button>
+              <button type="button" onclick="setContainerProp('flexWrap', 'wrap-reverse')" data-val="wrap-reverse" class="btn-option px-2.5 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">wrap-reverse</button>
+            </div>
+          </div>
+
+          <!-- justify-content -->
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label class="text-xs font-bold uppercase tracking-wider text-slate-600">justify-content</label>
+              <span class="text-[11px] text-indigo-600 font-medium">Alinea Eje Principal</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5" data-prop="justifyContent">
+              <button type="button" onclick="setContainerProp('justifyContent', 'flex-start')" data-val="flex-start" class="btn-option active px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">flex-start</button>
+              <button type="button" onclick="setContainerProp('justifyContent', 'flex-end')" data-val="flex-end" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">flex-end</button>
+              <button type="button" onclick="setContainerProp('justifyContent', 'center')" data-val="center" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">center</button>
+              <button type="button" onclick="setContainerProp('justifyContent', 'space-between')" data-val="space-between" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">space-between</button>
+              <button type="button" onclick="setContainerProp('justifyContent', 'space-around')" data-val="space-around" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">space-around</button>
+              <button type="button" onclick="setContainerProp('justifyContent', 'space-evenly')" data-val="space-evenly" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">space-evenly</button>
+            </div>
+
+            <!-- Aviso inteligente cuando flex-grow > 0 absorbe el espacio libre -->
+            <div id="justify-grow-warning" class="hidden mt-2.5 bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950">
+              <div class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div class="space-y-2">
+                  <p class="leading-snug">
+                    <strong>Nota:</strong> Como algún ítem tiene <code>flex-grow &gt; 0</code>, los elementos absorben todo el espacio sobrante y <code>justify-content</code> no tiene hueco libre que repartir.
+                  </p>
+                  <button type="button" onclick="resetGrowToZero()" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[11px] transition">
+                    Poner flex-grow a 0
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- align-items -->
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label class="text-xs font-bold uppercase tracking-wider text-slate-600">align-items</label>
+              <span class="text-[11px] text-emerald-600 font-medium">Alinea Eje Transversal</span>
+            </div>
+            <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5" data-prop="alignItems">
+              <button type="button" onclick="setContainerProp('alignItems', 'stretch')" data-val="stretch" class="btn-option active px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">stretch</button>
+              <button type="button" onclick="setContainerProp('alignItems', 'flex-start')" data-val="flex-start" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">flex-start</button>
+              <button type="button" onclick="setContainerProp('alignItems', 'flex-end')" data-val="flex-end" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">flex-end</button>
+              <button type="button" onclick="setContainerProp('alignItems', 'center')" data-val="center" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">center</button>
+              <button type="button" onclick="setContainerProp('alignItems', 'baseline')" data-val="baseline" class="btn-option px-2 py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">baseline</button>
+            </div>
+          </div>
+
+          <!-- Controles deslizantes de Ancho del Contenedor y Gap -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label for="slider-width" class="text-xs font-bold uppercase tracking-wider text-slate-600">Ancho contenedor</label>
+                <span id="val-width" class="text-xs font-mono font-semibold text-indigo-600">100%</span>
+              </div>
+              <input id="slider-width" type="range" min="320" max="660" step="10" value="660" oninput="setContainerWidth(this.value)" class="w-full cursor-pointer">
+              <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+                <span>320px</span>
+                <span>100%</span>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label for="slider-gap" class="text-xs font-bold uppercase tracking-wider text-slate-600">gap (separación)</label>
+                <span id="val-gap" class="text-xs font-mono font-semibold text-indigo-600">12px</span>
+              </div>
+              <input id="slider-gap" type="range" min="0" max="32" step="2" value="12" oninput="setContainerGap(this.value)" class="w-full cursor-pointer">
+              <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+                <span>0px</span>
+                <span>32px</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Panel 2: Propiedades de los Ítems (Hijos) -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+            <h2 class="font-bold text-slate-800 text-base">Ítems (Hijos)</h2>
+          </div>
+          <!-- Selector de Ítem Activo -->
+          <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+            <button type="button" onclick="selectItem(0)" id="sel-item-0" class="px-3 py-1 text-xs font-bold rounded-md bg-amber-500 text-white shadow-xs transition">Ítem 1</button>
+            <button type="button" onclick="selectItem(1)" id="sel-item-1" class="px-3 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition">Ítem 2</button>
+            <button type="button" onclick="selectItem(2)" id="sel-item-2" class="px-3 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition">Ítem 3</button>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-500 mb-3">
+          Editando propiedades individuales de <strong id="editing-item-label" class="text-amber-600">Ítem 1</strong> (haz clic sobre cualquier caja para seleccionarla):
+        </p>
+
+        <div class="space-y-4">
+          <!-- flex-grow -->
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label for="input-flexGrow" class="text-xs font-bold uppercase tracking-wider text-slate-600">flex-grow <span class="font-normal normal-case text-slate-400">(reparte espacio sobrante)</span></label>
+              <input id="input-flexGrow" type="number" min="0" max="50" step="0.5" value="0" onchange="setItemProp('flexGrow', this.value)" class="w-16 text-right font-mono text-xs font-bold border border-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:border-indigo-500">
+            </div>
+            <div class="flex items-center gap-3">
+              <input id="slider-flexGrow" type="range" min="0" max="10" step="0.5" value="0" oninput="setItemProp('flexGrow', this.value)" class="flex-grow cursor-pointer">
+              <div class="flex gap-1">
+                <button type="button" onclick="setItemProp('flexGrow', 0)" class="px-2 py-1 text-[11px] font-mono border border-slate-200 rounded-md hover:bg-slate-100">0</button>
+                <button type="button" onclick="setItemProp('flexGrow', 1)" class="px-2 py-1 text-[11px] font-mono border border-slate-200 rounded-md hover:bg-slate-100">1</button>
+                <button type="button" onclick="setItemProp('flexGrow', 2)" class="px-2 py-1 text-[11px] font-mono border border-slate-200 rounded-md hover:bg-slate-100">2</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- flex-shrink -->
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label for="input-flexShrink" class="text-xs font-bold uppercase tracking-wider text-slate-600">flex-shrink <span class="font-normal normal-case text-slate-400">(recorta si falta espacio)</span></label>
+              <input id="input-flexShrink" type="number" min="0" max="50" step="0.5" value="1" onchange="setItemProp('flexShrink', this.value)" class="w-16 text-right font-mono text-xs font-bold border border-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:border-indigo-500">
+            </div>
+            <div class="flex items-center gap-3">
+              <input id="slider-flexShrink" type="range" min="0" max="10" step="0.5" value="1" oninput="setItemProp('flexShrink', this.value)" class="flex-grow cursor-pointer">
+              <div class="flex gap-1">
+                <button type="button" onclick="setItemProp('flexShrink', 0)" class="px-2 py-1 text-[11px] font-mono border border-slate-200 rounded-md hover:bg-slate-100">0</button>
+                <button type="button" onclick="setItemProp('flexShrink', 1)" class="px-2 py-1 text-[11px] font-mono border border-slate-200 rounded-md hover:bg-slate-100">1</button>
+                <button type="button" onclick="setItemProp('flexShrink', 3)" class="px-2 py-1 text-[11px] font-mono border border-slate-200 rounded-md hover:bg-slate-100">3</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- flex-basis -->
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label class="text-xs font-bold uppercase tracking-wider text-slate-600">flex-basis</label>
+              <span class="text-[11px] text-slate-400">Tamaño base inicial</span>
+            </div>
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5" id="ctrl-flexBasis">
+              <button type="button" onclick="setItemProp('flexBasis', 'auto')" data-val="auto" class="btn-option py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">auto</button>
+              <button type="button" onclick="setItemProp('flexBasis', '100px')" data-val="100px" class="btn-option py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">100px</button>
+              <button type="button" onclick="setItemProp('flexBasis', '140px')" data-val="140px" class="btn-option active py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">140px</button>
+              <button type="button" onclick="setItemProp('flexBasis', '200px')" data-val="200px" class="btn-option py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">200px</button>
+              <button type="button" onclick="setItemProp('flexBasis', '280px')" data-val="280px" class="btn-option py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">280px</button>
+              <button type="button" onclick="setItemProp('flexBasis', '35%')" data-val="35%" class="btn-option py-2 text-xs font-mono border border-slate-200 rounded-lg hover:bg-slate-50 transition">35%</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- COLUMNA DERECHA: VISTA PREVIA VISUAL Y CÓDIGO CSS (7 columnas en desktop) -->
+    <section class="lg:col-span-7 flex flex-col gap-5">
+      
+      <!-- Lienzo Interactivo con Ejes Dinámicos -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div class="flex items-center gap-2">
+            <h2 class="font-bold text-slate-800 text-base">Vista Previa en Vivo</h2>
+            <span id="container-size-badge" class="text-[11px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+              Contenedor: 0px × 0px
+            </span>
+          </div>
+          <!-- Leyenda de Ejes -->
+          <div class="flex items-center gap-4 text-xs font-semibold">
+            <span class="flex items-center gap-1.5 text-indigo-600">
+              <span class="w-3.5 h-1 bg-indigo-600 rounded-full inline-block"></span>
+              Eje Principal
+            </span>
+            <span class="flex items-center gap-1.5 text-emerald-600">
+              <span class="w-3.5 h-1 bg-emerald-600 rounded-full inline-block"></span>
+              Eje Transversal
+            </span>
+          </div>
+        </div>
+
+        <!-- Contenedor Exterior que aloja las flechas de los ejes y la caja Flex -->
+        <div class="relative rounded-xl border-2 border-slate-300 canvas-grid p-8 sm:p-10 overflow-x-auto">
+          
+          <!-- SVG Dinámico para dibujar las flechas de Eje Principal (Índigo) y Transversal (Esmeralda) -->
+          <svg id="axes-overlay" class="absolute inset-0 w-full h-full pointer-events-none z-10" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <!-- Punta de flecha Eje Principal (Índigo) -->
+              <marker id="arrow-main" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#4f46e5" />
+              </marker>
+              <!-- Punta de flecha Eje Transversal (Esmeralda) -->
+              <marker id="arrow-cross" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#059669" />
+              </marker>
+            </defs>
+            
+            <!-- Línea Eje Principal -->
+            <line id="main-axis-line" x1="24" y1="16" x2="95%" y2="16" stroke="#4f46e5" stroke-width="2.5" marker-end="url(#arrow-main)" />
+            <rect id="main-axis-bg" x="35%" y="4" width="215" height="22" rx="6" fill="#eef2ff" stroke="#a5b4fc" stroke-width="1" />
+            <text id="main-axis-label" x="50%" y="19" text-anchor="middle" fill="#3730a3" font-size="11" font-weight="700" font-family="Inter, sans-serif">
+              EJE PRINCIPAL (row →)
+            </text>
+
+            <!-- Línea Eje Transversal -->
+            <line id="cross-axis-line" x1="16" y1="36" x2="16" y2="92%" stroke="#059669" stroke-width="2.5" stroke-dasharray="5,4" marker-end="url(#arrow-cross)" />
+            <rect id="cross-axis-bg" x="24" y="45%" width="160" height="22" rx="6" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="1" />
+            <text id="cross-axis-label" x="104" y="45%" dy="15" text-anchor="middle" fill="#065f46" font-size="11" font-weight="700" font-family="Inter, sans-serif">
+              EJE TRANSVERSAL ↓
+            </text>
+          </svg>
+
+          <!-- CONTENEDOR FLEX REAL -->
+          <div id="flex-preview-container" class="relative z-20 min-h-[400px] mx-auto bg-indigo-50/40 backdrop-blur-xs border-2 border-dashed border-indigo-400 rounded-xl p-4" style="width: 100%; display: flex; flex-direction: row; flex-wrap: nowrap; justify-content: flex-start; align-items: stretch; gap: 12px;">
+            
+            <!-- ÍTEM 1 -->
+            <div onclick="selectItem(0)" id="flex-item-0" class="flex-sim-item cursor-pointer rounded-xl p-3 bg-indigo-600 text-white shadow-md border-4 border-amber-400 flex flex-col justify-between overflow-hidden">
+              <div>
+                <div class="flex items-center justify-between gap-1 mb-1">
+                  <span class="font-bold text-sm sm:text-base">Ítem 1</span>
+                  <span class="text-[10px] uppercase tracking-wider bg-black/25 px-1.5 py-0.5 rounded-full item-tag">Editando</span>
+                </div>
+                <div class="inline-block bg-white/20 text-white font-mono text-[11px] font-semibold px-2 py-0.5 rounded-md mb-2 item-live-size">
+                  0px × 0px
+                </div>
+              </div>
+              <div class="bg-black/25 rounded-lg p-2 text-[11px] font-mono space-y-0.5 item-stats">
+                <div>grow: 0 | shrink: 1</div>
+                <div>basis: 140px</div>
+              </div>
+            </div>
+
+            <!-- ÍTEM 2 -->
+            <div onclick="selectItem(1)" id="flex-item-1" class="flex-sim-item cursor-pointer rounded-xl p-3 bg-emerald-600 text-white shadow-md border-4 border-transparent flex flex-col justify-between overflow-hidden">
+              <div>
+                <div class="flex items-center justify-between gap-1 mb-1">
+                  <span class="font-bold text-lg sm:text-xl">Ítem 2</span>
+                  <span class="text-[10px] uppercase tracking-wider bg-black/25 px-1.5 py-0.5 rounded-full item-tag hidden">Editando</span>
+                </div>
+                <div class="inline-block bg-white/20 text-white font-mono text-[11px] font-semibold px-2 py-0.5 rounded-md mb-2 item-live-size">
+                  0px × 0px
+                </div>
+              </div>
+              <div class="bg-black/25 rounded-lg p-2 text-[11px] font-mono space-y-0.5 item-stats">
+                <div>grow: 0 | shrink: 1</div>
+                <div>basis: 140px</div>
+              </div>
+            </div>
+
+            <!-- ÍTEM 3 -->
+            <div onclick="selectItem(2)" id="flex-item-2" class="flex-sim-item cursor-pointer rounded-xl p-3 bg-sky-600 text-white shadow-md border-4 border-transparent flex flex-col justify-between overflow-hidden">
+              <div>
+                <div class="flex items-center justify-between gap-1 mb-1">
+                  <span class="font-bold text-sm sm:text-base">Ítem 3</span>
+                  <span class="text-[10px] uppercase tracking-wider bg-black/25 px-1.5 py-0.5 rounded-full item-tag hidden">Editando</span>
+                </div>
+                <div class="inline-block bg-white/20 text-white font-mono text-[11px] font-semibold px-2 py-0.5 rounded-md mb-2 item-live-size">
+                  0px × 0px
+                </div>
+              </div>
+              <div class="bg-black/25 rounded-lg p-2 text-[11px] font-mono space-y-0.5 item-stats">
+                <div>grow: 0 | shrink: 1</div>
+                <div>basis: 140px</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Explicación contextual dinámica según la configuración actual -->
+        <div id="live-explanation" class="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-700 leading-relaxed">
+          <strong>Lectura de ejes:</strong> Con <code>flex-direction: row</code>, el <strong>Eje Principal</strong> es horizontal y el <strong>Eje Transversal</strong> es vertical.
+        </div>
+      </div>
+
+      <!-- Bloque de Código CSS Generado en Tiempo Real -->
+      <div class="bg-slate-900 rounded-2xl shadow-md overflow-hidden border border-slate-800">
+        <div class="flex items-center justify-between px-4 py-2.5 bg-slate-800/80 border-b border-slate-700">
+          <div class="flex items-center gap-2">
+            <div class="flex gap-1.5">
+              <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+              <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+              <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+            </div>
+            <span class="text-xs font-mono text-slate-300 ml-2">estilos-flexbox.css</span>
+          </div>
+          <button type="button" onclick="copyCSS()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition shadow-xs">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+            </svg>
+            Copiar CSS
+          </button>
+        </div>
+        <pre id="css-code-output" class="p-4 text-xs sm:text-sm text-indigo-300 overflow-x-auto leading-relaxed"></pre>
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    // Estado central del simulador Flexbox
+    const state = {
+      container: {
+        flexDirection: 'row',
+        flexWrap: 'nowrap',
+        justifyContent: 'flex-start',
+        alignItems: 'stretch',
+        width: '100%',
+        gap: 12
+      },
+      selectedItemIndex: 0,
+      items: [
+        { flexGrow: 0, flexShrink: 1, flexBasis: '140px' },
+        { flexGrow: 0, flexShrink: 1, flexBasis: '140px' },
+        { flexGrow: 0, flexShrink: 1, flexBasis: '140px' }
+      ]
+    };
+
+    let resizeObserver;
+
+    // Inicialización al cargar la ventana
+    window.onload = function () {
+      const containerEl = document.getElementById('flex-preview-container');
+      // Observar cambios de tamaño en el contenedor y en los 3 ítems para actualizar píxeles reales
+      if ('ResizeObserver' in window) {
+        resizeObserver = new ResizeObserver(() => {
+          updateLiveDimensions();
+          drawAxesOverlay();
+        });
+        resizeObserver.observe(containerEl);
+        for (let i = 0; i < 3; i++) {
+          resizeObserver.observe(document.getElementById(`flex-item-${i}`));
+        }
+      }
+
+      window.addEventListener('resize', () => {
+        updateLiveDimensions();
+        drawAxesOverlay();
+      });
+
+      updateUI();
+    };
+
+    // Aplicar escenarios rápidos (Presets)
+    function applyPreset(presetName) {
+      if (presetName === 'free') {
+        state.container = {
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          width: '100%',
+          gap: 12
+        };
+        state.items = [
+          { flexGrow: 0, flexShrink: 1, flexBasis: '140px' },
+          { flexGrow: 0, flexShrink: 1, flexBasis: '140px' },
+          { flexGrow: 0, flexShrink: 1, flexBasis: '140px' }
+        ];
+        showToast('Escenario cargado: Espacio libre (prueba justify-content)');
+      } else if (presetName === 'grow') {
+        state.container = {
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          justifyContent: 'flex-start',
+          alignItems: 'stretch',
+          width: '100%',
+          gap: 12
+        };
+        state.items = [
+          { flexGrow: 1, flexShrink: 1, flexBasis: '120px' },
+          { flexGrow: 2, flexShrink: 1, flexBasis: '120px' },
+          { flexGrow: 1, flexShrink: 1, flexBasis: '120px' }
+        ];
+        state.selectedItemIndex = 1;
+        showToast('Escenario cargado: Reparto de espacio (grow: 1, 2, 1)');
+      } else if (presetName === 'shrink') {
+        state.container = {
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          justifyContent: 'flex-start',
+          alignItems: 'stretch',
+          width: '480px',
+          gap: 12
+        };
+        state.items = [
+          { flexGrow: 0, flexShrink: 1, flexBasis: '280px' },
+          { flexGrow: 0, flexShrink: 3, flexBasis: '280px' },
+          { flexGrow: 0, flexShrink: 0, flexBasis: '280px' }
+        ];
+        state.selectedItemIndex = 2;
+        showToast('Escenario cargado: Falta de espacio (shrink: 1, 3, 0)');
+      }
+
+      updateUI();
+    }
+
+    // Actualizar una propiedad del contenedor padre
+    function setContainerProp(prop, value) {
+      state.container[prop] = value;
+      updateUI();
+    }
+
+    // Actualizar ancho del contenedor desde el slider
+    function setContainerWidth(val) {
+      const num = Number(val);
+      state.container.width = num >= 660 ? '100%' : `${num}px`;
+      updateUI();
+    }
+
+    // Actualizar gap del contenedor desde el slider
+    function setContainerGap(val) {
+      state.container.gap = Number(val);
+      updateUI();
+    }
+
+    // Seleccionar qué ítem hijo (0, 1 o 2) se está editando
+    function selectItem(index) {
+      state.selectedItemIndex = index;
+      updateUI();
+    }
+
+    // Actualizar una propiedad del ítem hijo seleccionado
+    function setItemProp(prop, value) {
+      if (prop === 'flexGrow' || prop === 'flexShrink') {
+        const parsed = Math.max(0, parseFloat(value) || 0);
+        state.items[state.selectedItemIndex][prop] = parsed;
+      } else {
+        state.items[state.selectedItemIndex][prop] = value;
+      }
+      updateUI();
+    }
+
+    // Poner flex-grow a 0 en todos los ítems para visualizar inmediatamente justify-content
+    function resetGrowToZero() {
+      state.items.forEach(item => {
+        item.flexGrow = 0;
+        if (item.flexBasis === 'auto') {
+          item.flexBasis = '140px';
+        }
+      });
+      updateUI();
+      showToast('flex-grow puesto a 0 en todos los ítems');
+    }
+
+    // Reiniciar el laboratorio a los valores por defecto
+    function resetLaboratorio() {
+      state.container = {
+        flexDirection: 'row',
+        flexWrap: 'nowrap',
+        justifyContent: 'flex-start',
+        alignItems: 'stretch',
+        width: '100%',
+        gap: 12
+      };
+      state.items = [
+        { flexGrow: 0, flexShrink: 1, flexBasis: '140px' },
+        { flexGrow: 0, flexShrink: 1, flexBasis: '140px' },
+        { flexGrow: 0, flexShrink: 1, flexBasis: '140px' }
+      ];
+      state.selectedItemIndex = 0;
+      updateUI();
+      showToast('Valores restablecidos por defecto');
+    }
+
+    // Sincronizar toda la interfaz, estilos, código CSS, mediciones y ejes SVG
+    function updateUI() {
+      // 1. Actualizar botones activos del contenedor
+      document.querySelectorAll('[data-prop]').forEach(group => {
+        const prop = group.getAttribute('data-prop');
+        const currentVal = state.container[prop];
+        group.querySelectorAll('button').forEach(btn => {
+          if (btn.getAttribute('data-val') === currentVal) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+      });
+
+      // 1b. Sincronizar sliders de ancho y gap
+      const widthSlider = document.getElementById('slider-width');
+      const widthLabel = document.getElementById('val-width');
+      if (state.container.width === '100%') {
+        widthSlider.value = 660;
+        widthLabel.textContent = '100%';
+      } else {
+        const pxVal = parseInt(state.container.width, 10);
+        widthSlider.value = pxVal;
+        widthLabel.textContent = `${pxVal}px`;
+      }
+
+      document.getElementById('slider-gap').value = state.container.gap;
+      document.getElementById('val-gap').textContent = `${state.container.gap}px`;
+
+      // 1c. Mostrar u ocultar aviso inteligente si algún ítem tiene flex-grow > 0
+      const hasFlexGrow = state.items.some(item => Number(item.flexGrow) > 0);
+      const warningEl = document.getElementById('justify-grow-warning');
+      if (hasFlexGrow) {
+        warningEl.classList.remove('hidden');
+      } else {
+        warningEl.classList.add('hidden');
+      }
+
+      // 2. Actualizar selector de ítem activo
+      document.getElementById('editing-item-label').textContent = `Ítem ${state.selectedItemIndex + 1}`;
+      for (let i = 0; i < 3; i++) {
+        const tabBtn = document.getElementById(`sel-item-${i}`);
+        if (i === state.selectedItemIndex) {
+          tabBtn.className = 'px-3 py-1 text-xs font-bold rounded-md bg-amber-500 text-white shadow-xs transition';
+        } else {
+          tabBtn.className = 'px-3 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition';
+        }
+      }
+
+      // 3. Actualizar controles del ítem seleccionado
+      const currentItem = state.items[state.selectedItemIndex];
+      document.getElementById('input-flexGrow').value = currentItem.flexGrow;
+      document.getElementById('slider-flexGrow').value = Math.min(10, currentItem.flexGrow);
+
+      document.getElementById('input-flexShrink').value = currentItem.flexShrink;
+      document.getElementById('slider-flexShrink').value = Math.min(10, currentItem.flexShrink);
+
+      updateButtonGroup('ctrl-flexBasis', String(currentItem.flexBasis));
+
+      // 4. Aplicar estilos CSS reales al contenedor de vista previa
+      const previewContainer = document.getElementById('flex-preview-container');
+      previewContainer.style.flexDirection = state.container.flexDirection;
+      previewContainer.style.flexWrap = state.container.flexWrap;
+      previewContainer.style.justifyContent = state.container.justifyContent;
+      previewContainer.style.alignItems = state.container.alignItems;
+      previewContainer.style.width = state.container.width;
+      previewContainer.style.gap = `${state.container.gap}px`;
+
+      // 5. Aplicar estilos a cada ítem hijo
+      for (let i = 0; i < 3; i++) {
+        const el = document.getElementById(`flex-item-${i}`);
+        const itemState = state.items[i];
+
+        el.style.flexGrow = itemState.flexGrow;
+        el.style.flexShrink = itemState.flexShrink;
+        el.style.flexBasis = itemState.flexBasis;
+        // Permitir que flex-shrink reduzca el ítem por debajo del tamaño mínimo automático del contenido
+        el.style.minWidth = '0px';
+        el.style.minHeight = '0px';
+
+        // Resaltar visualmente el ítem seleccionado
+        const tag = el.querySelector('.item-tag');
+        if (i === state.selectedItemIndex) {
+          el.classList.remove('border-transparent');
+          el.classList.add('border-amber-400');
+          tag.classList.remove('hidden');
+        } else {
+          el.classList.remove('border-amber-400');
+          el.classList.add('border-transparent');
+          tag.classList.add('hidden');
+        }
+
+        el.querySelector('.item-stats').innerHTML = `
+          <div>grow: ${itemState.flexGrow} | shrink: ${itemState.flexShrink}</div>
+          <div>basis: ${itemState.flexBasis}</div>
+        `;
+      }
+
+      // 6. Actualizar dimensiones en píxeles, explicación contextual, código CSS y flechas SVG
+      requestAnimationFrame(() => {
+        updateLiveDimensions();
+        drawAxesOverlay();
+      });
+      updateExplanation();
+      generateCSSCode();
+    }
+
+    // Medir y mostrar las dimensiones reales computadas en píxeles de contenedor e ítems
+    function updateLiveDimensions() {
+      const containerEl = document.getElementById('flex-preview-container');
+      if (!containerEl) return;
+
+      const cRect = containerEl.getBoundingClientRect();
+      document.getElementById('container-size-badge').textContent =
+        `Contenedor: ${Math.round(cRect.width)}px × ${Math.round(cRect.height)}px`;
+
+      for (let i = 0; i < 3; i++) {
+        const itemEl = document.getElementById(`flex-item-${i}`);
+        const rect = itemEl.getBoundingClientRect();
+        const sizeBadge = itemEl.querySelector('.item-live-size');
+        if (sizeBadge) {
+          sizeBadge.textContent = `${Math.round(rect.width)}px × ${Math.round(rect.height)}px`;
+        }
+      }
+    }
+
+    function updateButtonGroup(containerId, activeVal) {
+      const container = document.getElementById(containerId);
+      container.querySelectorAll('button').forEach(btn => {
+        if (btn.getAttribute('data-val') === activeVal) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    // Dibujar dinámicamente las flechas SVG de Eje Principal (Índigo) y Transversal (Esmeralda)
+    function drawAxesOverlay() {
+      const svg = document.getElementById('axes-overlay');
+      if (!svg || svg.clientWidth === 0) return;
+
+      const w = svg.clientWidth;
+      const h = svg.clientHeight;
+      const dir = state.container.flexDirection;
+
+      const mainLine = document.getElementById('main-axis-line');
+      const mainBg = document.getElementById('main-axis-bg');
+      const mainLabel = document.getElementById('main-axis-label');
+
+      const crossLine = document.getElementById('cross-axis-line');
+      const crossBg = document.getElementById('cross-axis-bg');
+      const crossLabel = document.getElementById('cross-axis-label');
+
+      if (dir === 'row' || dir === 'row-reverse') {
+        // EJE PRINCIPAL: HORIZONTAL (arriba)
+        const isRev = dir === 'row-reverse';
+        mainLine.setAttribute('x1', isRev ? w - 24 : 24);
+        mainLine.setAttribute('y1', 16);
+        mainLine.setAttribute('x2', isRev ? 24 : w - 24);
+        mainLine.setAttribute('y2', 16);
+
+        const labelW = 215;
+        mainBg.setAttribute('x', (w - labelW) / 2);
+        mainBg.setAttribute('y', 5);
+        mainBg.setAttribute('width', labelW);
+        mainLabel.setAttribute('x', w / 2);
+        mainLabel.setAttribute('y', 19);
+        mainLabel.textContent = isRev ? 'EJE PRINCIPAL (← row-reverse)' : 'EJE PRINCIPAL (row →)';
+
+        // EJE TRANSVERSAL: VERTICAL (izquierda, de arriba hacia abajo)
+        crossLine.setAttribute('x1', 16);
+        crossLine.setAttribute('y1', 36);
+        crossLine.setAttribute('x2', 16);
+        crossLine.setAttribute('y2', h - 20);
+
+        const crossLabelW = 158;
+        crossBg.setAttribute('x', 24);
+        crossBg.setAttribute('y', h - 28);
+        crossBg.setAttribute('width', crossLabelW);
+        crossLabel.setAttribute('x', 24 + crossLabelW / 2);
+        crossLabel.setAttribute('y', h - 28);
+        crossLabel.setAttribute('dy', 15);
+        crossLabel.textContent = 'EJE TRANSVERSAL ↓';
+
+      } else {
+        // EJE PRINCIPAL: VERTICAL (izquierda)
+        const isRev = dir === 'column-reverse';
+        mainLine.setAttribute('x1', 16);
+        mainLine.setAttribute('y1', isRev ? h - 24 : 36);
+        mainLine.setAttribute('x2', 16);
+        mainLine.setAttribute('y2', isRev ? 36 : h - 24);
+
+        const labelW = 240;
+        mainBg.setAttribute('x', 24);
+        mainBg.setAttribute('y', h - 28);
+        mainBg.setAttribute('width', labelW);
+        mainLabel.setAttribute('x', 24 + labelW / 2);
+        mainLabel.setAttribute('y', h - 13);
+        mainLabel.textContent = isRev ? 'EJE PRINCIPAL (↑ column-reverse)' : 'EJE PRINCIPAL (column ↓)';
+
+        // EJE TRANSVERSAL: HORIZONTAL (arriba, de izquierda a derecha)
+        crossLine.setAttribute('x1', 24);
+        crossLine.setAttribute('y1', 16);
+        crossLine.setAttribute('x2', w - 24);
+        crossLine.setAttribute('y2', 16);
+
+        const crossLabelW = 165;
+        crossBg.setAttribute('x', (w - crossLabelW) / 2);
+        crossBg.setAttribute('y', 5);
+        crossBg.setAttribute('width', crossLabelW);
+        crossLabel.setAttribute('x', w / 2);
+        crossLabel.setAttribute('y', 5);
+        crossLabel.setAttribute('dy', 14);
+        crossLabel.textContent = 'EJE TRANSVERSAL →';
+      }
+    }
+
+    // Generar explicación didáctica según el estado actual
+    function updateExplanation() {
+      const expEl = document.getElementById('live-explanation');
+      const { flexDirection, justifyContent, alignItems } = state.container;
+      const isRow = flexDirection.startsWith('row');
+
+      const mainDirText = isRow
+        ? '<strong>horizontal</strong> (en fila)'
+        : '<strong>vertical</strong> (en columna)';
+      const crossDirText = isRow
+        ? '<strong>vertical</strong>'
+        : '<strong>horizontal</strong>';
+
+      expEl.innerHTML = `
+        <strong>Lectura de ejes:</strong> Al tener <code>flex-direction: ${flexDirection}</code>, el 
+        <span class="text-indigo-700 font-semibold">Eje Principal</span> es ${mainDirText} y se controla con 
+        <code>justify-content: ${justifyContent}</code>. El 
+        <span class="text-emerald-700 font-semibold">Eje Transversal</span> (perpendicular) es ${crossDirText} y se alinea mediante 
+        <code>align-items: ${alignItems}</code>.
+      `;
+    }
+
+    // Generar bloque de código CSS limpio y exacto
+    function generateCSSCode() {
+      const c = state.container;
+      const items = state.items;
+
+      let css = `/* Propiedades del Contenedor (Padre) */\n`;
+      css += `.contenedor {\n`;
+      css += `  display: flex;\n`;
+      css += `  flex-direction: ${c.flexDirection};\n`;
+      css += `  flex-wrap: ${c.flexWrap};\n`;
+      css += `  justify-content: ${c.justifyContent};\n`;
+      css += `  align-items: ${c.alignItems};\n`;
+      css += `  gap: ${c.gap}px;\n`;
+      if (c.width !== '100%') {
+        css += `  width: ${c.width};\n`;
+      }
+      css += `}\n\n`;
+
+      css += `/* Propiedades de los Ítems (Hijos) */\n`;
+      items.forEach((item, idx) => {
+        css += `.item-${idx + 1} {\n`;
+        css += `  flex-grow: ${item.flexGrow};\n`;
+        css += `  flex-shrink: ${item.flexShrink};\n`;
+        css += `  flex-basis: ${item.flexBasis};\n`;
+        css += `}\n`;
+      });
+
+      document.getElementById('css-code-output').textContent = css;
+    }
+
+    // Copiar código CSS al portapapeles de forma compatible con iframes
+    function copyCSS() {
+      const codeText = document.getElementById('css-code-output').textContent;
+      const textarea = document.createElement('textarea');
+      textarea.value = codeText;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast('Código CSS copiado al portapapeles');
+      } catch (err) {
+        showToast('No se pudo copiar el código');
+      }
+      document.body.removeChild(textarea);
+    }
+
+    // Mostrar notificación visual
+    let toastTimeout;
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = message;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2800);
+    }
+  </script>
+</body>
+</html>
